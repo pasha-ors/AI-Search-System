@@ -3,6 +3,26 @@ import os
 import json
 from dotenv import load_dotenv
 
+import re
+
+def extract_price(text: str):
+    text = text.lower()
+
+    min_price = None
+    max_price = None
+
+    # від / from / over
+    match = re.search(r"(від|from|over)\s*(\d+)", text)
+    if match:
+        min_price = int(match.group(2))
+
+    # до / under / below
+    match = re.search(r"(до|under|below)\s*(\d+)", text)
+    if match:
+        max_price = int(match.group(2))
+
+    return min_price, max_price
+
 # --- ENV ---
 load_dotenv()
 OLLAMA_URL = os.getenv("OLLAMA_URL") or "http://localhost:11434"
@@ -44,8 +64,8 @@ def analyze_text(text: str):
     "color": string[] | null,
     "brand": string[] | null,
     "purpose": string[] | null,
-    "max_price": number | null,
-    "min_price": number | null
+    "max_price": null,
+    "min_price": null
     }}
 
     ALLOWED VALUES:
@@ -54,26 +74,28 @@ def analyze_text(text: str):
     purpose: ["running","training","casual"]
 
     RULES:
-    - Use ONLY allowed values
-    - ONE value per field (as array)
-    - Do NOT guess brand or color
-    - Extract ONLY if explicitly mentioned
-    - If not clearly mentioned → null
-    - Purpose can be inferred from meaning
-    - "under X" / "до X" → max_price
-    - "over X" / "від X" → min_price
-    - Extract value ONLY if it is explicitly mentioned in the text
-    - Do NOT infer or assume color or brand
-    - If the user did not clearly mention it → return null
+- Use ONLY allowed values
+- ONE value per field (as array)
 
-    If input has no meaning, return:
-    {{
-    "color": null,
-    "brand": null,
-    "purpose": null,
-    "max_price": null,
-    "min_price": null
-    }}
+- Extract brand ONLY if explicitly mentioned
+- Extract color ONLY if explicitly mentioned
+- Extract purpose ONLY if explicitly mentioned
+
+- Do NOT infer or guess brand, color, or purpose
+- If a field is not clearly mentioned → return null
+
+- If input has no clear meaning → return all fields as null
+
+- Output JSON ONLY
+
+    If input has no meaning:
+        {{
+        "color": null,
+        "brand": null,
+        "purpose": null,
+        "max_price": null,
+        "min_price": null
+        }}
 
     OUTPUT:
     JSON ONLY. NO TEXT.
@@ -81,6 +103,8 @@ def analyze_text(text: str):
     INPUT:
     "{text}"
     """
+
+    min_price, max_price = extract_price(text)
 
     try:
         r = requests.post(
@@ -110,9 +134,15 @@ def analyze_text(text: str):
                 if data[key] is None:
                     continue
                 if not isinstance(data[key], list):
-                    data[key] = [data[key]]
+                    data[key] = [str(data[key]).lower()]
                 if len(data[key]) > 1:
-                    data[key] = [data[key][0]]
+                    data[key] = [str(data[key][0]).lower()]
+                if data[key] == []:
+                    data[key] = None
+
+        # 🔥 ОЦЕ ТИ ЗАБУВ
+        data["min_price"] = min_price
+        data["max_price"] = max_price
 
         # --- PRICE SAFE ---
         for key in ["max_price", "min_price"]:
