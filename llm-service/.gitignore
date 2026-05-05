@@ -1,0 +1,43 @@
+# PYTHON
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyc.*
+
+# VENV
+venv/
+
+# ENV
+.env
+.env.*
+!.env.example
+
+# LOGS
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TEST
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+
+# BUILD
+dist/
+build/
+*.egg-info/
+
+# RUNTIME
+*.pid
+*.sock
+
+# DB
+*.sqlite3
